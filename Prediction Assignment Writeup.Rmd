@@ -1,0 +1,109 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Jacques-Emile"
+date: "29/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+For the prediction 
+
+I delete all the variables with enough missing values,
+to 160, i have 60 variables with classe.
+I delete them because if do some knn impute all the missing values will be the same so it's useless to do that
+
+```{r , message = F , echo=FALSE}
+training <- read.csv("C:/Users/cauma/Desktop/pml-training.csv")
+testing <- read.csv("C:/Users/cauma/Desktop/pml-testing.csv")
+library(caret)
+
+#We delete all variables with enough missing values
+summary(training)
+
+training = training[,-c(12:36)]
+training = training[,-c(25:34)]
+training = training[,-c(34:48)]
+training = training[,-c(37:50)]
+training = training[,-c(39:48)]
+training = training[,-37]
+training = training[,-50]
+temp = training[,0:50]
+training = training[,-c(0:50)]
+training = training[,-c(1:13)]
+training = training[,-c(2:11)]
+training = cbind(temp,training)
+training = training[,-50]
+
+testing = testing[,-c(12:36)]
+testing = testing[,-c(25:34)]
+testing = testing[,-c(34:48)]
+testing = testing[,-c(37:50)]
+testing = testing[,-c(39:48)]
+testing = testing[,-37]
+testing = testing[,-50]
+temp = testing[,0:50]
+testing = testing[,-c(0:50)]
+testing = testing[,-c(1:13)]
+testing = testing[,-c(2:11)]
+testing = cbind(temp,testing)
+testing = testing[,-50]
+
+```
+the new dataset
+```{r , message = F , echo=FALSE}
+dim(training)
+```
+For the prediction, we use first decision with library caret and we obtain 
+Before we partitionate dataset into train set and test set
+
+
+```{r , message=F , echo=F}
+intrain = createDataPartition(y=training$classe , p  = 0.7 , list = F)
+
+train = training[intrain,]
+test = training[-intrain,]
+dim(train)
+dim(test)
+```
+Now modelisation with decision tree
+
+```{r , message = F , echo=FALSE}
+modrpart = train(classe ~. , method = "rpart" , train )
+modrpart
+modrpart$finalModel
+```
+
+Now we will use decision with 10 folds for the cross validation
+
+```{r , message = F , echo=F}
+folds = createFolds(train$classe, k = 2)
+cv = lapply(folds, function(x) {
+  training_fold = train[-x, ]
+  test_fold = train[x, ]
+  modrpart = train(classe ~.,
+                     method="rpart",
+                     data = training_fold)
+  y_pred = predict(modrpart, newdata = test_fold[,-60])
+  cm = table(test_fold[, 60], y_pred)
+  accuracy = (cm[1,1] + cm[2,2]) / (cm[1,1] + cm[2,2] + cm[1,2] + cm[2,1])
+  return(accuracy)
+})
+accuracy = mean(as.numeric(cv))
+```
+We obtain a very high accuracy of 0.99, That's pretty good but that's can be due overfitting ! 
+we model maybe matching well the data. 
+
+We predict 20 differents cases now
+```{r , message = F , echo = F}
+modrpart = train(classe ~. , method = "rpart" , train)
+pred = predict(modrpart,testing)
+pred
+```
+The model predict only A in the testing set 
+
+
